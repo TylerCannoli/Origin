@@ -1,5 +1,7 @@
 # PACE - Predictive Accessorial Cost Detection Engine
 
+![CI](https://github.com/Spring-ISYS-2026-Alpha-Team/Accessorial_Cost_Detection_Engine/actions/workflows/ci.yml/badge.svg)
+
 ## Team Alpha - Spring 2026
 **University of Arkansas - ISYS 43603**
 

@@ -1,134 +1,62 @@
 # File: app.py
-import os
-import pyodbc
-import pandas as pd
 import streamlit as st
-from dotenv import load_dotenv
-from auth_utils import logout, check_auth
+from auth_utils import check_auth
 
-# Load credentials from .env file in the project root
-load_dotenv()
-
-# --- Page Config ---
 st.set_page_config(
-    page_title="PACE Dashboard",
-    page_icon=":bar_chart:",
-    layout="wide",
+    page_title="PACE — Sign In",
+    page_icon="📦",
+    layout="centered",
+    initial_sidebar_state="collapsed",
 )
 
-# --- Session State Initialization ---
-if 'authenticated' not in st.session_state:
-    st.session_state['authenticated'] = False
+# Hide sidebar entirely on the login page
+st.markdown("""
+<style>
+[data-testid="stSidebar"]       { display: none; }
+[data-testid="collapsedControl"] { display: none; }
+</style>
+""", unsafe_allow_html=True)
 
-# --- Authentication Screen (Mock for PB-4 Testing) ---
-# Note: In PB-2 (Login), this will be replaced with real DB credential validation.
-if not st.session_state['authenticated']:
-    st.title("🔒 PACE Secure Login")
-    st.markdown("Please authenticate to access shipment data.")
-    
-    with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submit = st.form_submit_button("Login")
-        
-        if submit:
-            if username and password:
-                st.session_state['authenticated'] = True
-                st.session_state['username'] = username
-                st.rerun()
-            else:
-                st.error("Please enter both username and password.")
-    st.stop() # Stop execution here if not logged in
+# Already logged in → go straight to dashboard
+if check_auth():
+    st.switch_page("pages/1_Dashboard.py")
 
-# --- Main Application (Protected) ---
+# ── Page layout ───────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="text-align:center; padding:48px 0 28px;">
+    <div style="font-size:48px; line-height:1;">📦</div>
+    <h1 style="font-size:34px; font-weight:700; color:#0F2B4A;
+               margin:10px 0 4px; letter-spacing:2px;">PACE</h1>
+    <p style="color:#6B7280; font-size:14px; margin:0; letter-spacing:0.3px;">
+        Predictive Accessorial Cost Engine
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-# Sidebar Navigation & Logout
-with st.sidebar:
-    st.title("PACE Navigation")
-    st.write(f"👤 User: **{st.session_state.get('username', 'Unknown')}**")
-    st.divider()
-    
-    # 🛑 PB-4 IMPLEMENTATION: Secure Logout Button
-    if st.button("🔒 Log Out Securely", use_container_width=True, type="secondary"):
-        logout()
-    
-    st.divider()
-    st.info("Session Active ✅")
+# ── Login card ────────────────────────────────────────────────────────────────
+with st.container(border=True):
+    st.markdown("#### Sign in to your account")
 
-# --- Database Connection (Protected Behind Auth) ---
-@st.cache_resource
-def get_connection():
-    """Create a cached SQL Server connection using credentials from .env."""
-    try:
-        conn_str = (
-            f"DRIVER={{{os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server')}}};"
-            f"SERVER={os.getenv('DB_SERVER')};"
-            f"DATABASE={os.getenv('DB_DATABASE')};"
-            f"UID={os.getenv('DB_USERNAME')};"
-            f"PWD={os.getenv('DB_PASSWORD')};"
+    with st.form("login_form", clear_on_submit=False):
+        username = st.text_input("Username", placeholder="Enter your username")
+        password = st.text_input(
+            "Password", type="password", placeholder="Enter your password"
         )
-        return pyodbc.connect(conn_str)
-    except Exception as e:
-        st.error(f"Database Connection Failed: {e}")
-        return None
+        submitted = st.form_submit_button(
+            "Sign In", use_container_width=True, type="primary"
+        )
 
-@st.cache_data
-def get_tables(_conn):
-    """Fetch all base table names from the database."""
-    if _conn is None:
-        return []
-    query = """
-        SELECT TABLE_NAME
-        FROM INFORMATION_SCHEMA.TABLES
-        WHERE TABLE_TYPE = 'BASE TABLE'
-        ORDER BY TABLE_NAME
-    """
-    try:
-        return pd.read_sql(query, _conn)["TABLE_NAME"].tolist()
-    except:
-        return []
-
-@st.cache_data
-def get_table_data(_conn, table_name: str, row_limit: int) -> pd.DataFrame:
-    """Fetch up to row_limit rows from the selected table."""
-    if _conn is None:
-        return pd.DataFrame()
-    query = f"SELECT TOP {row_limit} * FROM [{table_name}]"
-    try:
-        return pd.read_sql(query, _conn)
-    except:
-        return pd.DataFrame()
-
-# --- Main Dashboard Content ---
-st.title("PACE — Predictive Accessorial Cost Detection Engine")
-st.caption("MS SQL Server Table Viewer")
-
-# Connect to Database
-conn = get_connection()
-
-if conn:
-    # --- Sidebar Controls ---
-    with st.sidebar:
-        st.header("Data Controls")
-        tables = get_tables(conn)
-
-        if not tables:
-            st.warning("No tables found in the database.")
+    if submitted:
+        if username and password:
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = username
+            st.switch_page("pages/1_Dashboard.py")
         else:
-            selected_table = st.selectbox("Select Table", tables)
-            row_limit = st.slider(
-                "Row Limit",
-                min_value=100,
-                max_value=5000,
-                value=500,
-                step=100,
-            )
+            st.error("Please enter both username and password.")
 
-    # --- Main: Table Display ---
-    if tables:
-        st.subheader(f"Table: `{selected_table}`")
-        df = get_table_data(conn, selected_table, row_limit)
-        st.caption(f"Showing {len(df):,} rows × {len(df.columns):,} columns")
-        st.dataframe(df, use_container_width=True, hide_index=True)
-else:
-    st.error("Unable to connect to database. Please check .env credentials.")
+# ── Footer ────────────────────────────────────────────────────────────────────
+st.markdown("""
+<p style="text-align:center; color:#9CA3AF; font-size:11px; margin-top:40px;">
+    © 2026 PACE &nbsp;·&nbsp; University of Arkansas &nbsp;·&nbsp; ISYS 43603
+</p>
+""", unsafe_allow_html=True)
