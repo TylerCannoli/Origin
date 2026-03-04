@@ -7,15 +7,15 @@ import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from auth_utils import check_auth, logout
+from auth_utils import check_auth
 from utils.mock_data import generate_mock_shipments
-from utils.styling import inject_css, sidebar_header, NAVY_500, NAVY_900
+from utils.styling import inject_css, top_nav, NAVY_500, NAVY_900
 
 st.set_page_config(
     page_title="PACE — Route Analysis",
     page_icon="🗺️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 inject_css()
 
@@ -24,22 +24,25 @@ if not check_auth():
     st.page_link("app.py", label="Go to Sign In", icon="🔑")
     st.stop()
 
+username = st.session_state.get("username", "User")
+top_nav(username)
+
 @st.cache_data
 def load_data():
     return generate_mock_shipments(300)
 
 df = load_data()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-sidebar_header(st.session_state.get("username", "User"))
-with st.sidebar:
-    st.markdown("### Filters")
-    min_vol = st.slider("Minimum shipments per lane", 1, 10, 2,
-                        help="Filter out low-volume lanes")
-    view_by = st.radio("Analyze by", ["Lane (Origin → Dest)", "Origin City", "Destination City"])
-    st.divider()
-    if st.button("Log Out", use_container_width=True, type="secondary"):
-        logout()
+# ── Inline filters ────────────────────────────────────────────────────────────
+with st.expander("⚙️ Filters", expanded=False):
+    f1, f2 = st.columns(2)
+    with f1:
+        min_vol = st.slider("Minimum shipments per lane", 1, 10, 2,
+                            help="Filter out low-volume lanes")
+    with f2:
+        view_by = st.radio("Analyze by",
+                           ["Lane (Origin → Dest)", "Origin City", "Destination City"],
+                           horizontal=True)
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("## Route Analysis")

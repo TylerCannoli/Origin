@@ -1,16 +1,15 @@
 # File: pages/7_Accessorial_Tracker.py
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from auth_utils import check_auth, logout
+from auth_utils import check_auth
 from utils.mock_data import generate_mock_shipments
 from utils.styling import (
-    inject_css, sidebar_header,
+    inject_css, top_nav,
     NAVY_500, NAVY_900, NAVY_100,
     RISK_HIGH_FG, RISK_MED_FG, RISK_LOW_FG,
 )
@@ -19,7 +18,7 @@ st.set_page_config(
     page_title="PACE — Accessorial Tracker",
     page_icon="📋",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 inject_css()
 
@@ -28,6 +27,9 @@ if not check_auth():
     st.page_link("app.py", label="Go to Sign In", icon="🔑")
     st.stop()
 
+username = st.session_state.get("username", "User")
+top_nav(username)
+
 @st.cache_data
 def load_data():
     return generate_mock_shipments(300)
@@ -35,23 +37,23 @@ def load_data():
 df_all = load_data()
 df_all["ship_date_dt"] = pd.to_datetime(df_all["ship_date"])
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-sidebar_header(st.session_state.get("username", "User"))
-with st.sidebar:
-    st.markdown("### Filters")
-    acc_types = sorted([t for t in df_all["accessorial_type"].unique() if t != "None"])
-    sel_types = st.multiselect("Accessorial Type", acc_types, default=acc_types)
-    sel_carriers = st.multiselect(
-        "Carrier", sorted(df_all["carrier"].unique()),
-        default=sorted(df_all["carrier"].unique())
-    )
-    min_date = df_all["ship_date_dt"].min().date()
-    max_date = df_all["ship_date_dt"].max().date()
-    date_range = st.date_input("Date Range", value=(min_date, max_date),
-                               min_value=min_date, max_value=max_date)
-    st.divider()
-    if st.button("Log Out", use_container_width=True, type="secondary"):
-        logout()
+# ── Inline filters ────────────────────────────────────────────────────────────
+acc_types = sorted([t for t in df_all["accessorial_type"].unique() if t != "None"])
+min_date  = df_all["ship_date_dt"].min().date()
+max_date  = df_all["ship_date_dt"].max().date()
+
+with st.expander("⚙️ Filters", expanded=False):
+    f1, f2, f3 = st.columns(3)
+    with f1:
+        sel_types = st.multiselect("Accessorial Type", acc_types, default=acc_types)
+    with f2:
+        sel_carriers = st.multiselect(
+            "Carrier", sorted(df_all["carrier"].unique()),
+            default=sorted(df_all["carrier"].unique())
+        )
+    with f3:
+        date_range = st.date_input("Date Range", value=(min_date, max_date),
+                                   min_value=min_date, max_value=max_date)
 
 # ── Apply filters ─────────────────────────────────────────────────────────────
 df = df_all.copy()
@@ -73,13 +75,13 @@ st.caption("Understand where unexpected charges come from, which lanes carry the
 st.divider()
 
 # ── KPI row ───────────────────────────────────────────────────────────────────
-total_acc      = df["accessorial_charge_usd"].sum()
+total_acc       = df["accessorial_charge_usd"].sum()
 shipments_w_acc = len(df_with_acc)
 total_shipments = len(df)
-acc_rate       = (shipments_w_acc / total_shipments * 100) if total_shipments else 0
-avg_acc        = df_with_acc["accessorial_charge_usd"].mean() if len(df_with_acc) else 0
-max_acc        = df_with_acc["accessorial_charge_usd"].max()  if len(df_with_acc) else 0
-pct_of_total   = (total_acc / df["total_cost_usd"].sum() * 100) if df["total_cost_usd"].sum() else 0
+acc_rate        = (shipments_w_acc / total_shipments * 100) if total_shipments else 0
+avg_acc         = df_with_acc["accessorial_charge_usd"].mean() if len(df_with_acc) else 0
+max_acc         = df_with_acc["accessorial_charge_usd"].max()  if len(df_with_acc) else 0
+pct_of_total    = (total_acc / df["total_cost_usd"].sum() * 100) if df["total_cost_usd"].sum() else 0
 
 k1, k2, k3, k4, k5 = st.columns(5)
 with k1:
@@ -132,8 +134,8 @@ with col_l:
             st.dataframe(
                 type_data.rename(columns={
                     "accessorial_type": "Type",
-                    "total": "Total Cost ($)",
-                    "count": "Occurrences",
+                    "total":            "Total Cost ($)",
+                    "count":            "Occurrences",
                 }),
                 use_container_width=True,
                 hide_index=True,
@@ -153,7 +155,7 @@ with col_r:
             df_with_acc.groupby("carrier")
             .agg(total=("accessorial_charge_usd", "sum"),
                  count=("accessorial_charge_usd", "count"),
-                 avg=("accessorial_charge_usd", "mean"))
+                 avg  =("accessorial_charge_usd", "mean"))
             .reset_index()
             .sort_values("total", ascending=True)
         )
@@ -196,7 +198,7 @@ with col_a:
         fac_acc = (
             df_with_acc.groupby("facility")
             .agg(total=("accessorial_charge_usd", "sum"),
-                 avg=("accessorial_charge_usd", "mean"),
+                 avg  =("accessorial_charge_usd", "mean"),
                  count=("accessorial_charge_usd", "count"))
             .reset_index()
             .sort_values("total", ascending=True)
@@ -264,13 +266,13 @@ with st.container(border=True):
     tier_analysis = (
         df.groupby("risk_tier")
         .agg(
-            count          =("shipment_id",            "count"),
-            avg_acc        =("accessorial_charge_usd", "mean"),
-            total_acc      =("accessorial_charge_usd", "sum"),
-            pct_with_acc   =("accessorial_charge_usd",
-                             lambda x: (x > 0).mean() * 100),
-            avg_base       =("base_freight_usd",       "mean"),
-            avg_total      =("total_cost_usd",         "mean"),
+            count        =("shipment_id",            "count"),
+            avg_acc      =("accessorial_charge_usd", "mean"),
+            total_acc    =("accessorial_charge_usd", "sum"),
+            pct_with_acc =("accessorial_charge_usd",
+                           lambda x: (x > 0).mean() * 100),
+            avg_base     =("base_freight_usd",       "mean"),
+            avg_total    =("total_cost_usd",         "mean"),
         )
         .reset_index()
     )
@@ -280,7 +282,7 @@ with st.container(border=True):
 
     t1, t2, t3 = st.columns(3)
     for col_widget, (_, row) in zip([t1, t2, t3], tier_analysis.iterrows()):
-        tier = row["risk_tier"]
+        tier  = row["risk_tier"]
         color = {"High": RISK_HIGH_FG, "Medium": RISK_MED_FG, "Low": RISK_LOW_FG}[tier]
         with col_widget:
             st.markdown(

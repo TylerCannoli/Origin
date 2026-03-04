@@ -6,15 +6,15 @@ import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from auth_utils import check_auth, logout
+from auth_utils import check_auth
 from utils.mock_data import generate_mock_shipments, CARRIERS
-from utils.styling import inject_css, sidebar_header, NAVY_500, NAVY_900
+from utils.styling import inject_css, top_nav, NAVY_500, NAVY_900
 
 st.set_page_config(
     page_title="PACE — Carrier Comparison",
     page_icon="🚛",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 inject_css()
 
@@ -23,52 +23,46 @@ if not check_auth():
     st.page_link("app.py", label="Go to Sign In", icon="🔑")
     st.stop()
 
+username = st.session_state.get("username", "User")
+top_nav(username)
+
 @st.cache_data
 def load_data():
     return generate_mock_shipments(300)
 
 df_all = load_data()
 
-# ── Sidebar: carrier selector ─────────────────────────────────────────────────
-sidebar_header(st.session_state.get("username", "User"))
-
-# Persist active carriers in session state so "removing" is sticky
+# ── Persist active carriers in session state ──────────────────────────────────
 if "active_carriers" not in st.session_state:
     st.session_state["active_carriers"] = sorted(CARRIERS)
 
-with st.sidebar:
-    st.markdown("### Manage Carriers")
-    st.caption("Select which carriers to include in the comparison.")
-
-    selected = st.multiselect(
-        "Active Carriers",
-        options=sorted(CARRIERS),
-        default=st.session_state["active_carriers"],
-    )
-    st.session_state["active_carriers"] = selected
-
-    st.divider()
-
-    # Quick-add / remove all buttons
-    col_a, col_b = st.columns(2)
-    with col_a:
-        if st.button("Add All", use_container_width=True):
-            st.session_state["active_carriers"] = sorted(CARRIERS)
-            st.rerun()
-    with col_b:
-        if st.button("Clear All", use_container_width=True):
-            st.session_state["active_carriers"] = []
-            st.rerun()
-
-    st.divider()
-    if st.button("Log Out", use_container_width=True, type="secondary"):
-        logout()
+# ── Inline carrier selector ───────────────────────────────────────────────────
+with st.expander("⚙️ Manage Carriers", expanded=False):
+    f1, f2 = st.columns([5, 1])
+    with f1:
+        selected = st.multiselect(
+            "Active Carriers",
+            options=sorted(CARRIERS),
+            default=st.session_state["active_carriers"],
+        )
+        st.session_state["active_carriers"] = selected
+    with f2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("All", use_container_width=True):
+                st.session_state["active_carriers"] = sorted(CARRIERS)
+                st.rerun()
+        with col_b:
+            if st.button("Clear", use_container_width=True):
+                st.session_state["active_carriers"] = []
+                st.rerun()
 
 # ── Guard: need at least 1 carrier ───────────────────────────────────────────
 active_carriers = st.session_state["active_carriers"]
 if not active_carriers:
     st.markdown("## Carrier Comparison")
-    st.warning("No carriers selected. Use the sidebar to add carriers to the comparison.")
+    st.warning("No carriers selected. Use the filter above to add carriers to the comparison.")
     st.stop()
 
 df = df_all[df_all["carrier"].isin(active_carriers)].copy()
@@ -219,7 +213,6 @@ with ch4:
         st.markdown("#### Carrier Performance Radar")
         st.caption("Normalized across cost, risk, and accessorial rate (lower = better)")
 
-        # Normalize 0–1 for each metric (invert so lower cost = better score)
         def norm(series, invert=True):
             mn, mx = series.min(), series.max()
             if mx == mn:
@@ -228,10 +221,10 @@ with ch4:
             return 1 - n if invert else n
 
         radar_df = metrics.copy()
-        radar_df["cost_score"]        = norm(radar_df["avg_cpm"],          invert=True)
-        radar_df["risk_score_norm"]   = norm(radar_df["avg_risk"],         invert=True)
-        radar_df["acc_score"]         = norm(radar_df["accessorial_rate"], invert=True)
-        radar_df["volume_score"]      = norm(radar_df["shipments"],        invert=False)
+        radar_df["cost_score"]      = norm(radar_df["avg_cpm"],          invert=True)
+        radar_df["risk_score_norm"] = norm(radar_df["avg_risk"],         invert=True)
+        radar_df["acc_score"]       = norm(radar_df["accessorial_rate"], invert=True)
+        radar_df["volume_score"]    = norm(radar_df["shipments"],        invert=False)
 
         categories = ["Cost Efficiency", "Low Risk", "Low Accessorial", "Volume"]
 
@@ -239,7 +232,7 @@ with ch4:
         for _, row in radar_df.iterrows():
             vals = [row["cost_score"], row["risk_score_norm"],
                     row["acc_score"],  row["volume_score"]]
-            vals += [vals[0]]  # close the polygon
+            vals += [vals[0]]
             radar_fig.add_trace(go.Scatterpolar(
                 r=vals,
                 theta=categories + [categories[0]],

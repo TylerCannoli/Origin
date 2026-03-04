@@ -7,15 +7,15 @@ import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from auth_utils import check_auth, logout
+from auth_utils import check_auth
 from utils.mock_data import generate_mock_shipments, CARRIERS, FACILITIES
-from utils.styling import inject_css, sidebar_header, NAVY_500, NAVY_100
+from utils.styling import inject_css, top_nav, NAVY_500, NAVY_100
 
 st.set_page_config(
     page_title="PACE — Cost Estimate",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 inject_css()
 
@@ -23,6 +23,9 @@ if not check_auth():
     st.warning("Please sign in to access this page.")
     st.page_link("app.py", label="Go to Sign In", icon="🔑")
     st.stop()
+
+username = st.session_state.get("username", "User")
+top_nav(username)
 
 # ── Train model (cached so it only runs once) ─────────────────────────────────
 @st.cache_resource
@@ -58,20 +61,6 @@ def load_data():
 model, df_train = train_model()
 df = load_data()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-sidebar_header(st.session_state.get("username", "User"))
-with st.sidebar:
-    st.markdown("### Model Info")
-    st.markdown("""
-**Algorithm:** Random Forest Regressor
-**Training samples:** 300
-**Features:** Carrier, Facility, Weight, Miles
-**Target:** Total Shipment Cost
-    """)
-    st.divider()
-    if st.button("Log Out", use_container_width=True, type="secondary"):
-        logout()
-
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("## Cost Estimator")
 st.caption("Predict total shipment cost using machine learning — more accurate than a flat average.")
@@ -92,11 +81,18 @@ with form_col:
         estimate_clicked = st.button("Estimate Cost →", type="primary",
                                      use_container_width=True)
 
+    with st.expander("ℹ️ Model Info", expanded=False):
+        st.markdown("""
+**Algorithm:** Random Forest Regressor
+**Training samples:** 300
+**Features:** Carrier, Facility, Weight, Miles
+**Target:** Total Shipment Cost
+        """)
+
 with result_col:
-    # ── Global benchmarks ─────────────────────────────────────────────────────
-    avg_cpm      = df["cost_per_mile"].mean()
-    avg_total    = df["total_cost_usd"].mean()
-    simple_est   = avg_cpm * miles
+    avg_cpm    = df["cost_per_mile"].mean()
+    avg_total  = df["total_cost_usd"].mean()
+    simple_est = avg_cpm * miles
 
     if estimate_clicked:
         X_input = pd.DataFrame([{
@@ -104,14 +100,12 @@ with result_col:
             "weight_lbs": weight, "miles": miles,
         }])
 
-        # Predicted cost + confidence interval from individual trees
-        rf          = model.named_steps["rf"]
-        X_trans     = model.named_steps["pre"].transform(X_input)
-        tree_preds  = np.array([t.predict(X_trans)[0] for t in rf.estimators_])
-        pred        = tree_preds.mean()
-        lower       = max(0, pred - 1.96 * tree_preds.std())
-        upper       = pred + 1.96 * tree_preds.std()
-        delta_vs_avg = pred - simple_est
+        rf         = model.named_steps["rf"]
+        X_trans    = model.named_steps["pre"].transform(X_input)
+        tree_preds = np.array([t.predict(X_trans)[0] for t in rf.estimators_])
+        pred       = tree_preds.mean()
+        lower      = max(0, pred - 1.96 * tree_preds.std())
+        upper      = pred + 1.96 * tree_preds.std()
 
         st.session_state["last_estimate"] = {
             "pred": pred, "lower": lower, "upper": upper,
@@ -125,7 +119,6 @@ with result_col:
         pred, lower, upper = e["pred"], e["lower"], e["upper"]
         simple_est = e["simple_est"]
 
-        # ── Primary result card ───────────────────────────────────────────────
         with st.container(border=True):
             st.markdown("#### ML Cost Prediction")
             r1, r2, r3 = st.columns(3)
@@ -136,7 +129,6 @@ with result_col:
             with r3:
                 st.metric("95% Upper Bound", f"${upper:,.2f}")
 
-            # Progress bar context
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown(
                 f"<div style='font-size:13px; color:#6B7280;'>"
@@ -148,7 +140,6 @@ with result_col:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # ── Comparison card ───────────────────────────────────────────────────
         with st.container(border=True):
             st.markdown("#### How This Compares")
             c1, c2, c3 = st.columns(3)
@@ -158,15 +149,12 @@ with result_col:
                 st.metric("ML Prediction",      f"${pred:,.2f}")
             with c2:
                 st.metric("Avg Cost/Mile Est.", f"${simple_est:,.2f}",
-                          delta=f"${delta_simple:+,.2f} vs ML",
-                          delta_color="inverse")
+                          delta=f"${delta_simple:+,.2f} vs ML", delta_color="inverse")
             with c3:
                 st.metric("Fleet Avg Total",    f"${avg_total:,.2f}",
-                          delta=f"${delta_avg:+,.2f} vs ML",
-                          delta_color="inverse")
+                          delta=f"${delta_avg:+,.2f} vs ML",    delta_color="inverse")
 
             st.markdown("<br>", unsafe_allow_html=True)
-            # Visual comparison bar chart
             comp_fig = go.Figure(go.Bar(
                 x=["ML Prediction", f"Avg Cost/Mile\n(${avg_cpm:.2f}/mi × {e['miles']} mi)",
                    "Fleet Avg Total"],
@@ -213,7 +201,6 @@ with st.container(border=True):
         "Importance": rf.feature_importances_,
     }).sort_values("Importance", ascending=True).tail(12)
 
-    # Clean up one-hot labels for readability
     importance["Feature"] = (
         importance["Feature"]
         .str.replace("carrier_", "Carrier: ", regex=False)

@@ -1,6 +1,6 @@
 """
 utils/styling.py
-Shared CSS theme and sidebar helpers for all PACE pages.
+Shared CSS theme and fixed top navigation bar for all PACE pages.
 """
 import streamlit as st
 
@@ -17,8 +17,20 @@ RISK_MED_FG   = "#D97706"
 RISK_HIGH_BG  = "#FEE2E2"
 RISK_HIGH_FG  = "#DC2626"
 
-# ── Shared CSS ────────────────────────────────────────────────────────────────
-PACE_CSS = f"""
+# ── Navigation pages ──────────────────────────────────────────────────────────
+_NAV_PAGES = [
+    ("🏠 Home",        "/Home"),
+    ("📊 Dashboard",   "/Dashboard"),
+    ("📁 Upload",      "/Upload"),
+    ("🚚 Shipments",   "/Shipments"),
+    ("💰 Cost Est.",   "/Cost_Estimate"),
+    ("🗺️ Routes",      "/Route_Analysis"),
+    ("🚛 Carriers",    "/Carrier_Comparison"),
+    ("📋 Accessorial", "/Accessorial_Tracker"),
+]
+
+# ── Base page CSS (injected on every page) ────────────────────────────────────
+_BASE_CSS = f"""
 <style>
 /* ── Global ───────────────────────────────────────── */
 .stApp {{
@@ -26,37 +38,89 @@ PACE_CSS = f"""
     font-family: 'Inter', 'Segoe UI', sans-serif;
 }}
 
-/* ── Sidebar ──────────────────────────────────────── */
-[data-testid="stSidebar"] {{
-    background-color: {NAVY_900} !important;
+/* ── Hide Streamlit chrome and sidebar ────────────── */
+#MainMenu, header, footer {{ visibility: hidden; }}
+[data-testid="stSidebar"],
+[data-testid="collapsedControl"],
+section[data-testid="stSidebarNav"] {{
+    display: none !important;
 }}
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] .stMarkdown {{
-    color: #CBD5E1 !important;
+
+/* ── Push content below fixed nav ─────────────────── */
+.block-container {{
+    padding-top: 4.5rem !important;
+    padding-left: 2.5rem !important;
+    padding-right: 2.5rem !important;
+    max-width: 1400px !important;
 }}
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {{
-    color: #FFFFFF !important;
+
+/* ── Fixed top nav bar ────────────────────────────── */
+.pace-nav {{
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 99999;
+    background: {NAVY_900};
+    height: 54px;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 2px;
+    border-bottom: 2px solid {NAVY_700};
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    font-family: 'Inter', 'Segoe UI', sans-serif;
 }}
-/* Nav links */
-[data-testid="stSidebarNav"] a span {{
-    color: #94A3B8 !important;
-    font-size: 14px;
+.pace-nav .nav-logo {{
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 1.5px;
+    margin-right: 20px;
+    text-decoration: none;
+    white-space: nowrap;
 }}
-[data-testid="stSidebarNav"] a:hover span {{
-    color: #FFFFFF !important;
+.pace-nav .nav-link {{
+    color: rgba(255,255,255,0.62);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
 }}
-[data-testid="stSidebarNav"] a[aria-current="page"] span {{
-    color: #FFFFFF !important;
-    font-weight: 600;
+.pace-nav .nav-link:hover {{
+    color: #FFFFFF;
+    background: rgba(255,255,255,0.12);
 }}
-[data-testid="stSidebarNav"] a[aria-current="page"] {{
-    background-color: rgba(255,255,255,0.12) !important;
-    border-left: 3px solid #FFFFFF;
-    border-radius: 0 6px 6px 0;
+.pace-nav .nav-divider {{
+    width: 1px;
+    height: 20px;
+    background: rgba(255,255,255,0.15);
+    margin: 0 8px;
+}}
+.pace-nav .nav-spacer {{ flex: 1; }}
+.pace-nav .nav-user {{
+    color: rgba(255,255,255,0.72);
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 12px;
+    white-space: nowrap;
+}}
+.pace-nav .nav-signout {{
+    color: rgba(255,255,255,0.62);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 4px 10px;
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 5px;
+    white-space: nowrap;
+    transition: all 0.15s;
+}}
+.pace-nav .nav-signout:hover {{
+    color: #FFFFFF;
+    border-color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.1);
 }}
 
 /* ── Metric Cards ─────────────────────────────────── */
@@ -79,9 +143,6 @@ PACE_CSS = f"""
     font-weight: 700 !important;
     color: #111827 !important;
 }}
-[data-testid="stMetricDelta"] {{
-    font-size: 12px !important;
-}}
 
 /* ── Primary Buttons ─────────────────────────────── */
 .stButton > button[kind="primary"] {{
@@ -90,7 +151,6 @@ PACE_CSS = f"""
     border: none !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
-    letter-spacing: 0.3px;
 }}
 .stButton > button[kind="primary"]:hover {{
     background-color: {NAVY_700} !important;
@@ -109,21 +169,6 @@ h3 {{ color: #374151 !important; font-weight: 600 !important; }}
     overflow: hidden;
 }}
 
-/* ── Tabs ────────────────────────────────────────── */
-.stTabs [data-baseweb="tab-list"] {{
-    gap: 4px;
-    border-bottom: 2px solid #E5E7EB;
-}}
-.stTabs [data-baseweb="tab"] {{
-    border-radius: 6px 6px 0 0;
-    font-weight: 500;
-    color: #6B7280;
-}}
-.stTabs [aria-selected="true"] {{
-    color: {NAVY_900} !important;
-    border-bottom: 2px solid {NAVY_900} !important;
-}}
-
 /* ── File uploader ───────────────────────────────── */
 [data-testid="stFileUploader"] {{
     border: 2px dashed #D1D5DB;
@@ -137,39 +182,43 @@ h3 {{ color: #374151 !important; font-weight: 600 !important; }}
 }}
 
 /* ── Alerts ──────────────────────────────────────── */
-[data-testid="stAlert"] {{
-    border-radius: 8px !important;
-}}
+[data-testid="stAlert"] {{ border-radius: 8px !important; }}
 </style>
 """
 
 
 def inject_css() -> None:
-    """Inject PACE theme CSS into the current page."""
-    st.markdown(PACE_CSS, unsafe_allow_html=True)
+    """Inject PACE base CSS. Call at the top of every page."""
+    st.markdown(_BASE_CSS, unsafe_allow_html=True)
 
 
-def sidebar_header(username: str) -> None:
-    """Render the PACE branding + user block in the sidebar."""
-    st.sidebar.markdown(
+def top_nav(username: str) -> None:
+    """
+    Render the fixed horizontal top navigation bar.
+    Handles logout via ?action=logout query param.
+    Call this at the top of every authenticated page, after inject_css().
+    """
+    # Handle logout triggered by clicking "Sign Out" in the nav bar
+    if st.query_params.get("action") == "logout":
+        st.query_params.clear()
+        from auth_utils import logout
+        logout()
+
+    nav_links = "".join(
+        f'<a class="nav-link" href="{url}">{label}</a>'
+        for label, url in _NAV_PAGES
+    )
+
+    st.markdown(
         f"""
-        <div style="padding:16px 0 12px;">
-            <div style="font-size:22px; font-weight:700; color:#FFFFFF; letter-spacing:1px;">
-                📦 PACE
-            </div>
-            <div style="font-size:11px; color:#64748B; margin-top:2px; letter-spacing:0.4px;">
-                PREDICTIVE ACCESSORIAL COST ENGINE
-            </div>
-        </div>
-        <div style="border-top:1px solid rgba(255,255,255,0.12);
-                    padding:12px 0;
-                    margin-bottom:4px;">
-            <div style="font-size:11px; color:#64748B; text-transform:uppercase;
-                        letter-spacing:0.5px;">Signed in as</div>
-            <div style="font-size:14px; font-weight:600; color:#FFFFFF; margin-top:3px;">
-                👤 {username}
-            </div>
-        </div>
+        <nav class="pace-nav">
+            <a class="nav-logo" href="/Home">📦 PACE</a>
+            <div class="nav-divider"></div>
+            {nav_links}
+            <div class="nav-spacer"></div>
+            <span class="nav-user">👤 {username}</span>
+            <a class="nav-signout" href="?action=logout">Sign Out</a>
+        </nav>
         """,
         unsafe_allow_html=True,
     )
@@ -178,12 +227,17 @@ def sidebar_header(username: str) -> None:
 def risk_badge_html(tier: str) -> str:
     """Return an HTML badge string for a risk tier label."""
     colors = {
-        "High":   (RISK_HIGH_BG,  RISK_HIGH_FG),
-        "Medium": (RISK_MED_BG,   RISK_MED_FG),
-        "Low":    (RISK_LOW_BG,   RISK_LOW_FG),
+        "High":   (RISK_HIGH_BG, RISK_HIGH_FG),
+        "Medium": (RISK_MED_BG,  RISK_MED_FG),
+        "Low":    (RISK_LOW_BG,  RISK_LOW_FG),
     }
     bg, fg = colors.get(tier, ("#F3F4F6", "#6B7280"))
     return (
         f'<span style="background:{bg}; color:{fg}; padding:3px 10px; '
         f'border-radius:4px; font-size:11px; font-weight:600;">{tier}</span>'
     )
+
+
+# Keep for backwards compatibility — now a no-op
+def sidebar_header(username: str) -> None:
+    pass

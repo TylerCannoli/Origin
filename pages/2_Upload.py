@@ -6,15 +6,15 @@ import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from auth_utils import check_auth, logout
-from utils.styling import inject_css, sidebar_header, NAVY_900
+from auth_utils import check_auth
+from utils.styling import inject_css, top_nav, NAVY_900
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="PACE — Upload",
     page_icon="📁",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 inject_css()
 
@@ -24,26 +24,8 @@ if not check_auth():
     st.page_link("app.py", label="Go to Sign In", icon="🔑")
     st.stop()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-sidebar_header(st.session_state.get("username", "User"))
-with st.sidebar:
-    st.markdown("### CSV Requirements")
-    st.markdown("""
-**Required columns:**
-- `shipment_id`
-- `ship_date` *(YYYY-MM-DD)*
-- `carrier`
-- `facility`
-- `weight_lbs` *(0 – 200,000)*
-- `miles` *(0 – 5,000)*
-- `base_freight_usd` *(≥ 0)*
-- `accessorial_charge_usd` *(≥ 0)*
-
-**File:** `.csv` · Max 10 MB
-    """)
-    st.divider()
-    if st.button("Log Out", use_container_width=True, type="secondary"):
-        logout()
+username = st.session_state.get("username", "User")
+top_nav(username)
 
 # ── Validation helpers ────────────────────────────────────────────────────────
 REQUIRED_COLS = [
@@ -59,24 +41,21 @@ def validate_dataframe(df: pd.DataFrame):
     missing = [c for c in REQUIRED_COLS if c not in df.columns]
     if missing:
         errors.append(f"Missing required column(s): {', '.join(missing)}")
-        return errors, warnings   # Can't validate rows without schema
+        return errors, warnings
 
     # 2. Row-level checks
     for idx, row in df.iterrows():
-        row_num = idx + 2  # 1-indexed + header row
+        row_num = idx + 2
 
-        # Null checks on key fields
         for col in ["shipment_id", "carrier", "facility"]:
             if pd.isnull(row[col]) or str(row[col]).strip() == "":
                 errors.append(f"Row {row_num}: '{col}' is empty or missing.")
 
-        # Date parse
         try:
             pd.to_datetime(row["ship_date"])
         except Exception:
             errors.append(f"Row {row_num}: 'ship_date' value '{row['ship_date']}' is not a valid date.")
 
-        # Numeric ranges
         try:
             w = float(row["weight_lbs"])
             if not (0 <= w <= 200_000):
@@ -105,7 +84,6 @@ def validate_dataframe(df: pd.DataFrame):
         except (ValueError, TypeError):
             errors.append(f"Row {row_num}: 'accessorial_charge_usd' is not a number.")
 
-        # Warnings
         if pd.isnull(row.get("accessorial_charge_usd")) or str(row.get("accessorial_charge_usd")).strip() == "":
             warnings.append(f"Row {row_num}: 'accessorial_charge_usd' is blank — defaulted to 0.")
 
@@ -113,15 +91,13 @@ def validate_dataframe(df: pd.DataFrame):
 
 
 def mock_score(df: pd.DataFrame) -> pd.DataFrame:
-    """Assign simple mock risk scores based on available features."""
     rng = np.random.default_rng(99)
     scored = df.copy()
 
-    scored["weight_lbs"]         = pd.to_numeric(scored["weight_lbs"],         errors="coerce").fillna(0)
-    scored["miles"]              = pd.to_numeric(scored["miles"],              errors="coerce").fillna(0)
-    scored["base_freight_usd"]   = pd.to_numeric(scored["base_freight_usd"],   errors="coerce").fillna(0)
+    scored["weight_lbs"]       = pd.to_numeric(scored["weight_lbs"],       errors="coerce").fillna(0)
+    scored["miles"]            = pd.to_numeric(scored["miles"],            errors="coerce").fillna(0)
+    scored["base_freight_usd"] = pd.to_numeric(scored["base_freight_usd"], errors="coerce").fillna(0)
 
-    # Simple heuristic: weight + miles normalised, plus noise
     w_norm = scored["weight_lbs"] / 44_000
     m_norm = scored["miles"]      /  5_000
     noise  = rng.uniform(0, 0.2, len(scored))
@@ -136,6 +112,22 @@ def mock_score(df: pd.DataFrame) -> pd.DataFrame:
 # ── Page header ───────────────────────────────────────────────────────────────
 st.markdown("## Upload Shipment Data")
 st.caption("Upload a CSV file to validate your data and generate risk predictions.")
+
+with st.expander("📋 CSV Requirements", expanded=False):
+    st.markdown("""
+**Required columns:**
+- `shipment_id`
+- `ship_date` *(YYYY-MM-DD)*
+- `carrier`
+- `facility`
+- `weight_lbs` *(0 – 200,000)*
+- `miles` *(0 – 5,000)*
+- `base_freight_usd` *(≥ 0)*
+- `accessorial_charge_usd` *(≥ 0)*
+
+**File:** `.csv` · Max 10 MB
+    """)
+
 st.divider()
 
 # ── Upload zone ───────────────────────────────────────────────────────────────
@@ -156,12 +148,11 @@ use_sample = st.button("Use sample data", type="secondary")
 if use_sample:
     from utils.mock_data import generate_mock_shipments
     sample = generate_mock_shipments(50)
-    # Drop derived columns so it looks like raw CSV input
-    st.session_state["upload_df"]     = sample.drop(
+    st.session_state["upload_df"]      = sample.drop(
         columns=["risk_score", "risk_tier", "accessorial_type"], errors="ignore"
     )
-    st.session_state["upload_scored"] = None
-    st.session_state["upload_errors"] = []
+    st.session_state["upload_scored"]  = None
+    st.session_state["upload_errors"]  = []
     st.session_state["upload_warnings"] = []
     st.rerun()
 
@@ -180,7 +171,6 @@ if uploaded_file is not None:
 if "upload_df" in st.session_state and st.session_state["upload_df"] is not None:
     raw_df = st.session_state["upload_df"]
 
-    # Run validation (only once per upload)
     if not st.session_state.get("upload_errors") and not st.session_state.get("upload_warnings"):
         errs, warns = validate_dataframe(raw_df)
         st.session_state["upload_errors"]   = errs
@@ -190,7 +180,6 @@ if "upload_df" in st.session_state and st.session_state["upload_df"] is not None
     warns = st.session_state.get("upload_warnings", [])
     pass_count = len(raw_df) - len(errs)
 
-    # ── Summary banner ─────────────────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     with st.container(border=True):
         st.markdown("#### Validation Results")
@@ -238,7 +227,6 @@ if "upload_df" in st.session_state and st.session_state["upload_df"] is not None
                         unsafe_allow_html=True,
                     )
 
-    # ── Data preview + score button ────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     with st.container(border=True):
         hdr_col, btn_col = st.columns([4, 1])
@@ -256,8 +244,6 @@ if "upload_df" in st.session_state and st.session_state["upload_df"] is not None
             st.caption("⚠️ Resolve all errors before scoring.")
 
         preview = raw_df.head(25)
-
-        # Show scored version if available, else raw
         if st.session_state.get("upload_scored") is not None:
             preview = st.session_state["upload_scored"].head(25)
 
