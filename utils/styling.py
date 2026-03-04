@@ -82,21 +82,34 @@ section[data-testid="stSidebarNav"] {{
     min-height: unset !important;
 }}
 
-/* Nav link text */
+/* Nav link text — target a, p, span to cover all Streamlit versions */
 [data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
-[data-testid="stPageLink"] a {{
+[data-testid="stPageLink"] a,
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a p,
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a span,
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a div {{
     color: #FFFFFF !important;
     font-size: 12px !important;
     font-weight: 700 !important;
     text-decoration: none !important;
-    padding: 4px 7px !important;
-    border-radius: 4px !important;
     white-space: nowrap !important;
-    display: inline-block !important;
-    transition: background 0.15s, color 0.15s !important;
 }}
 [data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
-[data-testid="stPageLink"] a:hover {{
+[data-testid="stPageLink"] a {{
+    padding: 4px 7px !important;
+    border-radius: 4px !important;
+    display: inline-block !important;
+    transition: background 0.15s !important;
+}}
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a:hover,
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a:hover p,
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a:hover span {{
     color: #FFFFFF !important;
     background: rgba(255,255,255,0.12) !important;
 }}
