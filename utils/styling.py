@@ -19,14 +19,14 @@ RISK_HIGH_FG  = "#DC2626"
 
 # ── Navigation pages (file paths for st.page_link — preserves session state) ──
 _NAV_PAGES = [
-    ("🏠 Home",        "pages/0_Home.py"),
-    ("📊 Dashboard",   "pages/1_Dashboard.py"),
-    ("📁 Upload",      "pages/2_Upload.py"),
-    ("🚚 Shipments",   "pages/3_Shipments.py"),
-    ("💰 Cost Est.",   "pages/4_Cost_Estimate.py"),
-    ("🗺️ Routes",      "pages/5_Route_Analysis.py"),
-    ("🚛 Carriers",    "pages/6_Carrier_Comparison.py"),
-    ("📋 Accessorial", "pages/7_Accessorial_Tracker.py"),
+    ("Home",        "pages/0_Home.py"),
+    ("Dashboard",   "pages/1_Dashboard.py"),
+    ("Upload",      "pages/2_Upload.py"),
+    ("Shipments",   "pages/3_Shipments.py"),
+    ("Cost Est.",   "pages/4_Cost_Estimate.py"),
+    ("Routes",      "pages/5_Route_Analysis.py"),
+    ("Carriers",    "pages/6_Carrier_Comparison.py"),
+    ("Accessorial", "pages/7_Accessorial_Tracker.py"),
 ]
 
 # ── Base page CSS (injected on every page) ────────────────────────────────────
@@ -85,9 +85,9 @@ section[data-testid="stSidebarNav"] {{
 /* Nav link text */
 [data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
 [data-testid="stPageLink"] a {{
-    color: rgba(255,255,255,0.7) !important;
+    color: #FFFFFF !important;
     font-size: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 700 !important;
     text-decoration: none !important;
     padding: 4px 7px !important;
     border-radius: 4px !important;
