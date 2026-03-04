@@ -23,6 +23,18 @@ FACILITIES = [
     "Cold Storage E - Houston",
 ]
 
+ORIGIN_CITIES = [
+    "Dallas, TX", "Chicago, IL", "Los Angeles, CA",
+    "New York, NY", "Atlanta, GA", "Denver, CO",
+    "Phoenix, AZ", "Seattle, WA",
+]
+
+DESTINATION_CITIES = [
+    "Memphis, TN", "Houston, TX", "Nashville, TN",
+    "Louisville, KY", "Charlotte, NC", "Indianapolis, IN",
+    "Columbus, OH", "Kansas City, MO",
+]
+
 ACCESSORIAL_TYPES = ["Detention", "Lumper Fee", "Layover", "Re-delivery"]
 
 # Risk bias per carrier (positive = higher risk)
@@ -54,8 +66,10 @@ def generate_mock_shipments(n: int = 300, seed: int = 42) -> pd.DataFrame:
         base_date - timedelta(days=int(rng.integers(0, 90))) for _ in range(n)
     ]
 
-    carriers  = rng.choice(CARRIERS,   n)
-    facilities = rng.choice(FACILITIES, n)
+    carriers     = rng.choice(CARRIERS,          n)
+    facilities   = rng.choice(FACILITIES,        n)
+    origins      = rng.choice(ORIGIN_CITIES,     n)
+    destinations = rng.choice(DESTINATION_CITIES, n)
 
     c_bias = np.array([CARRIER_BIAS[c]  for c in carriers])
     f_bias = np.array([FACILITY_BIAS[f] for f in facilities])
@@ -83,18 +97,26 @@ def generate_mock_shipments(n: int = 300, seed: int = 42) -> pd.DataFrame:
         for rs in risk_scores
     ]
 
+    total_costs   = (base_freight + accessorial_charges).round(2)
+    cost_per_mile = np.where(miles > 0, total_costs / miles, 0).round(4)
+
     df = pd.DataFrame({
-        "shipment_id":          [f"SHP-{str(i).zfill(5)}" for i in range(1, n + 1)],
-        "ship_date":            [d.strftime("%Y-%m-%d") for d in ship_dates],
-        "carrier":              carriers,
-        "facility":             facilities,
-        "weight_lbs":           weight_lbs,
-        "miles":                miles,
-        "base_freight_usd":     base_freight,
-        "risk_score":           risk_scores,
-        "risk_tier":            risk_tiers,
-        "accessorial_type":     accessorial_types,
+        "shipment_id":            [f"SHP-{str(i).zfill(5)}" for i in range(1, n + 1)],
+        "ship_date":              [d.strftime("%Y-%m-%d") for d in ship_dates],
+        "carrier":                carriers,
+        "facility":               facilities,
+        "origin_city":            origins,
+        "destination_city":       destinations,
+        "lane":                   [f"{o} → {d}" for o, d in zip(origins, destinations)],
+        "weight_lbs":             weight_lbs,
+        "miles":                  miles,
+        "base_freight_usd":       base_freight,
         "accessorial_charge_usd": accessorial_charges,
+        "total_cost_usd":         total_costs,
+        "cost_per_mile":          cost_per_mile,
+        "risk_score":             risk_scores,
+        "risk_tier":              risk_tiers,
+        "accessorial_type":       accessorial_types,
     })
 
     return df.sort_values("ship_date", ascending=False).reset_index(drop=True)

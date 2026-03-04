@@ -17,9 +17,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Already logged in → go straight to dashboard
+# Already logged in → go straight to home
 if check_auth():
-    st.switch_page("pages/1_Dashboard.py")
+    st.switch_page("pages/0_Home.py")
 
 # ── Page layout ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -50,7 +50,7 @@ with st.container(border=True):
         if username and password:
             st.session_state["authenticated"] = True
             st.session_state["username"] = username
-            st.switch_page("pages/1_Dashboard.py")
+            st.switch_page("pages/0_Home.py")
         else:
             st.error("Please enter both username and password.")
 
