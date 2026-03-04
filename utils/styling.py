@@ -17,16 +17,16 @@ RISK_MED_FG   = "#D97706"
 RISK_HIGH_BG  = "#FEE2E2"
 RISK_HIGH_FG  = "#DC2626"
 
-# ── Navigation pages ──────────────────────────────────────────────────────────
+# ── Navigation pages (file paths for st.page_link — preserves session state) ──
 _NAV_PAGES = [
-    ("🏠 Home",        "/Home"),
-    ("📊 Dashboard",   "/Dashboard"),
-    ("📁 Upload",      "/Upload"),
-    ("🚚 Shipments",   "/Shipments"),
-    ("💰 Cost Est.",   "/Cost_Estimate"),
-    ("🗺️ Routes",      "/Route_Analysis"),
-    ("🚛 Carriers",    "/Carrier_Comparison"),
-    ("📋 Accessorial", "/Accessorial_Tracker"),
+    ("🏠 Home",        "pages/0_Home.py"),
+    ("📊 Dashboard",   "pages/1_Dashboard.py"),
+    ("📁 Upload",      "pages/2_Upload.py"),
+    ("🚚 Shipments",   "pages/3_Shipments.py"),
+    ("💰 Cost Est.",   "pages/4_Cost_Estimate.py"),
+    ("🗺️ Routes",      "pages/5_Route_Analysis.py"),
+    ("🚛 Carriers",    "pages/6_Carrier_Comparison.py"),
+    ("📋 Accessorial", "pages/7_Accessorial_Tracker.py"),
 ]
 
 # ── Base page CSS (injected on every page) ────────────────────────────────────
@@ -46,81 +46,79 @@ section[data-testid="stSidebarNav"] {{
     display: none !important;
 }}
 
-/* ── Push content below fixed nav ─────────────────── */
+/* ── Page content padding ──────────────────────────── */
 .block-container {{
-    padding-top: 4.5rem !important;
+    padding-top: 1rem !important;
     padding-left: 2.5rem !important;
     padding-right: 2.5rem !important;
     max-width: 1400px !important;
 }}
 
-/* ── Fixed top nav bar ────────────────────────────── */
-.pace-nav {{
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 99999;
-    background: {NAVY_900};
-    height: 54px;
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    gap: 2px;
-    border-bottom: 2px solid {NAVY_700};
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    font-family: 'Inter', 'Segoe UI', sans-serif;
+/* ── Nav bar: style the columns row that contains page links ── */
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"]) {{
+    background: {NAVY_900} !important;
+    border-bottom: 2px solid {NAVY_700} !important;
+    padding: 5px 16px !important;
+    margin-bottom: 1.5rem !important;
+    border-radius: 6px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+    align-items: center !important;
 }}
-.pace-nav .nav-logo {{
-    font-size: 16px;
-    font-weight: 700;
-    color: #FFFFFF;
-    letter-spacing: 1.5px;
-    margin-right: 20px;
-    text-decoration: none;
-    white-space: nowrap;
+
+/* Tighten column padding inside nav */
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+> div[data-testid="stColumn"] > div {{
+    padding: 0 2px !important;
+    gap: 0 !important;
 }}
-.pace-nav .nav-link {{
-    color: rgba(255,255,255,0.62);
-    font-size: 13px;
-    font-weight: 500;
-    text-decoration: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
+
+/* Reset default page link card styling */
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] {{
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    min-height: unset !important;
 }}
-.pace-nav .nav-link:hover {{
-    color: #FFFFFF;
-    background: rgba(255,255,255,0.12);
+
+/* Nav link text */
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a {{
+    color: rgba(255,255,255,0.7) !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+    padding: 4px 7px !important;
+    border-radius: 4px !important;
+    white-space: nowrap !important;
+    display: inline-block !important;
+    transition: background 0.15s, color 0.15s !important;
 }}
-.pace-nav .nav-divider {{
-    width: 1px;
-    height: 20px;
-    background: rgba(255,255,255,0.15);
-    margin: 0 8px;
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+[data-testid="stPageLink"] a:hover {{
+    color: #FFFFFF !important;
+    background: rgba(255,255,255,0.12) !important;
 }}
-.pace-nav .nav-spacer {{ flex: 1; }}
-.pace-nav .nav-user {{
-    color: rgba(255,255,255,0.72);
-    font-size: 12px;
-    font-weight: 500;
-    margin-right: 12px;
-    white-space: nowrap;
+
+/* Sign Out button inside nav */
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+.stButton > button {{
+    background: transparent !important;
+    color: rgba(255,255,255,0.7) !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+    min-height: unset !important;
+    height: 26px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
 }}
-.pace-nav .nav-signout {{
-    color: rgba(255,255,255,0.62);
-    font-size: 12px;
-    font-weight: 500;
-    text-decoration: none;
-    padding: 4px 10px;
-    border: 1px solid rgba(255,255,255,0.22);
-    border-radius: 5px;
-    white-space: nowrap;
-    transition: all 0.15s;
-}}
-.pace-nav .nav-signout:hover {{
-    color: #FFFFFF;
-    border-color: rgba(255,255,255,0.5);
-    background: rgba(255,255,255,0.1);
+[data-testid="stHorizontalBlock"]:has([data-testid="stPageLink"])
+.stButton > button:hover {{
+    color: #FFFFFF !important;
+    border-color: rgba(255,255,255,0.5) !important;
+    background: rgba(255,255,255,0.1) !important;
 }}
 
 /* ── Metric Cards ─────────────────────────────────── */
@@ -194,34 +192,37 @@ def inject_css() -> None:
 
 def top_nav(username: str) -> None:
     """
-    Render the fixed horizontal top navigation bar.
-    Handles logout via ?action=logout query param.
+    Render the top navigation bar using st.page_link() so that navigation
+    stays within the existing WebSocket session (no page reload, no auth loss).
     Call this at the top of every authenticated page, after inject_css().
     """
-    # Handle logout triggered by clicking "Sign Out" in the nav bar
-    if st.query_params.get("action") == "logout":
-        st.query_params.clear()
-        from auth_utils import logout
-        logout()
-
-    nav_links = "".join(
-        f'<a class="nav-link" href="{url}">{label}</a>'
-        for label, url in _NAV_PAGES
+    # Logo | nav links × 8 | user label | sign-out button
+    logo_col, *page_cols, user_col, out_col = st.columns(
+        [1.4] + [1.0] * 8 + [1.0, 0.7]
     )
 
-    st.markdown(
-        f"""
-        <nav class="pace-nav">
-            <a class="nav-logo" href="/Home">📦 PACE</a>
-            <div class="nav-divider"></div>
-            {nav_links}
-            <div class="nav-spacer"></div>
-            <span class="nav-user">👤 {username}</span>
-            <a class="nav-signout" href="?action=logout">Sign Out</a>
-        </nav>
-        """,
-        unsafe_allow_html=True,
-    )
+    with logo_col:
+        st.markdown(
+            f"<div style='color:#FFFFFF; font-size:15px; font-weight:700; "
+            f"letter-spacing:1px; padding:4px 0;'>📦 PACE</div>",
+            unsafe_allow_html=True,
+        )
+
+    for col, (label, page) in zip(page_cols, _NAV_PAGES):
+        with col:
+            st.page_link(page, label=label)
+
+    with user_col:
+        st.markdown(
+            f"<div style='color:rgba(255,255,255,0.7); font-size:11px; "
+            f"text-align:right; padding:5px 4px 0;'>👤 {username}</div>",
+            unsafe_allow_html=True,
+        )
+
+    with out_col:
+        if st.button("Sign Out", key="nav_signout"):
+            from auth_utils import logout
+            logout()
 
 
 def risk_badge_html(tier: str) -> str:
