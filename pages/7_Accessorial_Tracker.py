@@ -7,6 +7,7 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from auth_utils import check_auth
+from utils.database import get_connection, get_shipments_with_charges
 from utils.mock_data import generate_mock_shipments
 from utils.styling import (
     inject_css, top_nav,
@@ -30,15 +31,19 @@ if not check_auth():
 username = st.session_state.get("username", "User")
 top_nav(username)
 
-@st.cache_data
-def load_data():
-    return generate_mock_shipments(300)
+conn = get_connection()
+df_all = get_shipments_with_charges(conn) if conn is not None else pd.DataFrame()
+if df_all.empty:
+    # Fall back to mock data — filter to only rows with accessorial charges for consistency
+    _mock = generate_mock_shipments(300)
+    df_all = _mock[_mock["accessorial_charge_usd"] > 0].copy()
+    df_all["accessorial_type"] = df_all.get("accessorial_type", "Unknown")
+    st.info("Live database unavailable — showing demo data.", icon="ℹ️")
 
-df_all = load_data()
 df_all["ship_date_dt"] = pd.to_datetime(df_all["ship_date"])
 
 # ── Inline filters ────────────────────────────────────────────────────────────
-acc_types = sorted([t for t in df_all["accessorial_type"].unique() if t != "None"])
+acc_types = sorted(df_all["accessorial_type"].dropna().unique())
 min_date  = df_all["ship_date_dt"].min().date()
 max_date  = df_all["ship_date_dt"].max().date()
 
@@ -58,7 +63,7 @@ with st.expander("⚙️ Filters", expanded=False):
 # ── Apply filters ─────────────────────────────────────────────────────────────
 df = df_all.copy()
 if sel_types:
-    df = df[df["accessorial_type"].isin(sel_types + ["None"])]
+    df = df[df["accessorial_type"].isin(sel_types)]
 if sel_carriers:
     df = df[df["carrier"].isin(sel_carriers)]
 if len(date_range) == 2:
