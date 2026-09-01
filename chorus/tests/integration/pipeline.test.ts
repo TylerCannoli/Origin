@@ -10,6 +10,8 @@ import { runStage } from "@/worker/queues/runner";
 import type { WorkerContext } from "@/worker/context";
 import type { AttributionResult, CharacterRoster, Manuscript } from "@/lib/agents/types";
 import type { Enqueuer } from "@/lib/queue";
+import { MockTTS } from "@/lib/tts/mock";
+import { FFmpeg } from "@/lib/audio/ffmpeg";
 
 const lantern = fs.readFileSync(path.join(__dirname, "../fixtures/lantern.txt"), "utf8");
 
@@ -35,7 +37,7 @@ async function seedProject(kind = "txt", body: string | Buffer = lantern) {
 beforeAll(async () => {
   await migrateTestDb();
   const sql = db();
-  ctx = { sql, storage: new LocalStorageProvider(path.join(os.tmpdir(), "chorus-pipeline-test")), llm: new LoggedLLM(new FakeLLM(), sql, { baseDelayMs: 1 }), enqueuer: fakeEnqueuer };
+  ctx = { sql, storage: new LocalStorageProvider(path.join(os.tmpdir(), "chorus-pipeline-test")), llm: new LoggedLLM(new FakeLLM(), sql, { baseDelayMs: 1 }), enqueuer: fakeEnqueuer, tts: new MockTTS(), ffmpeg: new FFmpeg() };
 });
 beforeEach(async () => {
   await resetTestDb();
