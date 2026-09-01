@@ -7,6 +7,7 @@ const tabs = [
   ["/casting", "Casting board"],
   ["/script", "Script"],
   ["/review", "Review"],
+  ["/takes", "Takes"],
   ["/listen", "Listen"],
   ["/settings", "Settings"],
 ] as const;

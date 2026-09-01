@@ -69,6 +69,9 @@ export function CastingBoard({
               Show {excludedCount} excluded
             </label>
           ) : null}
+          <a href={`/projects/${projectId}/takes`} className="text-muted hover:text-ink">
+            Review takes
+          </a>
           <Button variant="secondary" size="sm" onClick={() => setInviting({ id: "", canonical_name: "the whole project" } as CharacterWithStats)}>
             Share casting link
           </Button>
@@ -88,6 +91,15 @@ export function CastingBoard({
             onEdit={() => setEditing(c)}
             onMerge={() => setMerging(c)}
             onInvite={() => setInviting(c)}
+            onRecord={async () => {
+              setError(null);
+              try {
+                const { link } = await api.post<{ link: string }>(`/api/characters/${c.id}/invite`, { expires_in_days: 30 });
+                window.location.href = link;
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Could not open the recording studio");
+              }
+            }}
             onExclude={(excluded) => patch(c.id, { is_excluded: excluded })}
             onClaim={(claim) => patch(c.id, { claim_self: claim })}
             onVoiceChange={async (voiceId) => {

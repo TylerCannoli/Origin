@@ -14,6 +14,7 @@ export function CharacterCard({
   onExclude,
   onClaim,
   onVoiceChange,
+  onRecord,
 }: {
   character: CharacterWithStats;
   voices: Voice[];
@@ -24,6 +25,7 @@ export function CharacterCard({
   onExclude: (excluded: boolean) => void;
   onClaim: (claim: boolean) => void;
   onVoiceChange: (voiceId: string) => void;
+  onRecord: () => void;
 }) {
   const traits = [c.inferred_age_range?.replace("_", " "), c.inferred_gender_presentation].filter(Boolean).join(", ");
   return (
@@ -53,6 +55,9 @@ export function CharacterCard({
             </Button>
             <Button size="sm" variant="secondary" onClick={onInvite}>
               Invite a reader
+            </Button>
+            <Button size="sm" variant="record" onClick={onRecord} title="Open the recording studio for this part">
+              Record
             </Button>
           </>
         ) : null}

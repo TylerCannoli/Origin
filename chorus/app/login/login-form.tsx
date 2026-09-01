@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
@@ -8,6 +8,8 @@ import { createSupabaseBrowserClient } from "@/lib/auth/browser";
 
 export function LoginForm({ mode }: { mode: "supabase" | "dev" | "none" }) {
   const router = useRouter();
+  const search = useSearchParams();
+  const claimToken = search.get("claim");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tab, setTab] = useState<"signin" | "signup" | "magic">("signin");
@@ -18,6 +20,21 @@ export function LoginForm({ mode }: { mode: "supabase" | "dev" | "none" }) {
     return <Notice tone="warn">Sign-in is not configured. Set the Supabase variables or enable CHORUS_DEV_AUTH for local development.</Notice>;
   }
 
+  /** After sign-in, attach any guest recordings from a casting link to this account. */
+  async function claimAndGo() {
+    if (claimToken) {
+      try {
+        await fetch(`/api/record/${encodeURIComponent(claimToken)}/claim`, { method: "POST" });
+      } catch {
+        /* recordings stay usable under the guest token */
+      }
+      router.push(`/record/${encodeURIComponent(claimToken)}`);
+    } else {
+      router.push("/dashboard");
+    }
+    router.refresh();
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -26,8 +43,7 @@ export function LoginForm({ mode }: { mode: "supabase" | "dev" | "none" }) {
       if (mode === "dev") {
         const res = await fetch("/api/auth/dev-login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
         if (!res.ok) throw new Error((await res.json()).error ?? "Could not sign in");
-        router.push("/dashboard");
-        router.refresh();
+        await claimAndGo();
         return;
       }
       const supabase = createSupabaseBrowserClient();
@@ -46,8 +62,7 @@ export function LoginForm({ mode }: { mode: "supabase" | "dev" | "none" }) {
       }
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      router.push("/dashboard");
-      router.refresh();
+      await claimAndGo();
     } catch (err) {
       setMessage({ tone: "error", text: err instanceof Error ? err.message : "Could not sign in" });
     } finally {
@@ -73,6 +88,9 @@ export function LoginForm({ mode }: { mode: "supabase" | "dev" | "none" }) {
       ) : (
         <Notice tone="info">Local development mode. Enter any email to sign in as that user.</Notice>
       )}
+      {claimToken ? (
+        <Notice tone="success">Sign in or create an account and the takes you just recorded will be saved under your name.</Notice>
+      ) : null}
       <div>
         <Label htmlFor="email">Email</Label>
         <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
