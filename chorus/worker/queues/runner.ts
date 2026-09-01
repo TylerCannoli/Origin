@@ -75,8 +75,14 @@ async function chain<S extends PipelineStage>(ctx: WorkerContext, stage: S, payl
   const projectId = payload.project_id;
   const next = nextStage(stage);
   if (next) {
-    await sql`insert into pipeline_runs (project_id, stage, status) values (${projectId}, ${next}, 'queued')`;
-    await ctx.enqueuer.enqueue(next, { project_id: projectId, force: payload.force });
+    const [run] = await sql<{ id: string }[]>`insert into pipeline_runs (project_id, stage, status) values (${projectId}, ${next}, 'queued') returning id`;
+    try {
+      await ctx.enqueuer.enqueue(next, { project_id: projectId, force: payload.force });
+    } catch (err) {
+      // Do not leave a phantom queued run that would block a manual retry.
+      await sql`update pipeline_runs set status = 'failed', finished_at = now(), error = ${`Could not queue the next stage: ${err instanceof Error ? err.message : String(err)}`.slice(0, 2000)} where id = ${run.id}`;
+      throw err;
+    }
     return;
   }
   if (stage === "cast_voices") {

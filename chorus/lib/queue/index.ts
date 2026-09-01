@@ -59,12 +59,15 @@ export function queueFor(stage: PipelineStage): Queue {
   return q;
 }
 
-/** Deterministic job id per (stage, project, chapter) so duplicate enqueues collapse while a job is pending. */
+/**
+ * Deterministic job id per (stage, project, chapter, batch) so duplicate enqueues collapse while
+ * a job is pending. BullMQ forbids ":" in custom ids, so parts are joined with "_".
+ */
 export function jobIdFor<S extends PipelineStage>(stage: S, payload: JobPayload<S>): string {
   const parts = [stage, payload.project_id];
   if ("chapter_id" in payload && payload.chapter_id) parts.push(payload.chapter_id);
   if ("batch_id" in payload && payload.batch_id) parts.push(payload.batch_id);
-  return parts.join(":");
+  return parts.join("_").replace(/:/g, "-");
 }
 
 const realEnqueuer: Enqueuer = {

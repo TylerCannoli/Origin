@@ -64,6 +64,7 @@ export async function runCharacterExtraction(deps: ExtractionDeps, input: { proj
 
   const chunks = chunkManuscript(row.raw_structure);
   const perChunk: { characters: { name: string; aliases: string[]; description: string; speaks: boolean }[]; snippet: string }[] = [];
+  let lastError: unknown = null;
   for (const chunk of chunks) {
     await deps.onProgress?.(chunk.index, chunks.length, `Reading section ${chunk.index + 1} of ${chunks.length}`);
     try {
@@ -80,8 +81,13 @@ export async function runCharacterExtraction(deps: ExtractionDeps, input: { proj
       perChunk.push({ characters: data.characters, snippet: chunk.text.slice(0, 400) });
     } catch (err) {
       // Degrade gracefully (§4.7): a failed chunk loses its candidates but does not fail the stage.
+      lastError = err;
       console.warn(`[extract] chunk ${chunk.index} failed: ${err instanceof Error ? err.message : err}`);
     }
+  }
+  // Every chunk failing is not degradation, it is an outage (bad key, provider down): surface it.
+  if (chunks.length > 0 && perChunk.length === 0) {
+    throw new Error(`Character extraction failed for every section: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
   }
 
   // Non-speaking mentions are kept through reconciliation so full names used only in

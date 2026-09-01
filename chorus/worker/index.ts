@@ -5,6 +5,7 @@ import type { PipelineStage } from "@/lib/db/types";
 import { createWorkerContext } from "@/worker/context";
 import { runStage } from "@/worker/queues/runner";
 import { closeDb } from "@/lib/db/client";
+import { env } from "@/lib/env";
 import "@/worker/queues/register";
 
 /**
@@ -12,6 +13,14 @@ import "@/worker/queues/register";
  * holds the Anthropic / ElevenLabs keys for pipeline work (§5.2).
  */
 async function main() {
+  if (env.llmProvider === "anthropic" && !process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN && !process.env.ANTHROPIC_PROFILE) {
+    console.warn(
+      "[worker] CHORUS_LLM_PROVIDER=anthropic but no ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN is set. Model stages will fail unless an `ant auth login` profile exists. Set CHORUS_LLM_PROVIDER=fake for an offline run.",
+    );
+  }
+  if (env.ttsProvider === "elevenlabs" && !env.elevenLabs.apiKey) {
+    console.warn("[worker] CHORUS_TTS_PROVIDER=elevenlabs but ELEVENLABS_API_KEY is not set; renders will fail.");
+  }
   const ctx = createWorkerContext();
   const concurrency: Partial<Record<PipelineStage, number>> = { render_chapter: 2, attribute_dialogue: 1 };
   const workers = STAGES.map(

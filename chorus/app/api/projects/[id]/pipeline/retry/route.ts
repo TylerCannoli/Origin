@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth/server";
 import { createPipelineRun, getOwnedProject, touchProject } from "@/lib/db/projects";
 import { bullEnqueuer } from "@/lib/queue";
 import { PROCESSING_STAGES } from "@/lib/queue/stages";
+import { enqueueOrFail } from "@/lib/pipeline/start";
 import type { PipelineStage } from "@/lib/db/types";
 import { db } from "@/lib/db/client";
 
@@ -20,6 +21,6 @@ export const POST = handle<Ctx>(async (req, { params }) => {
   if (active) throw badRequest("A processing step is already running. Wait for it to finish.");
   await touchProject(id, { status: "processing" });
   const run = await createPipelineRun(id, stage, "queued");
-  await bullEnqueuer.enqueue(stage, { project_id: id, force: true });
+  await enqueueOrFail(run.id, id, () => bullEnqueuer.enqueue(stage, { project_id: id, force: true }));
   return json({ run }, { status: 202 });
 });

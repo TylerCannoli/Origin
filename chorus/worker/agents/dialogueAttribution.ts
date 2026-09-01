@@ -92,6 +92,8 @@ export async function runDialogueAttribution(deps: AttributionDeps, input: { pro
   const byId = new Map(lines.map((l) => [l.id, l]));
   const recentSpeakers: (string | null)[] = [];
   const total = Math.ceil(items.length / batchSize);
+  let failedBatches = 0;
+  let lastError: unknown = null;
   for (let b = 0; b < items.length; b += batchSize) {
     const batch = items.slice(b, b + batchSize);
     for (const item of batch) item.previous_speakers = recentSpeakers.slice(-4);
@@ -136,6 +138,8 @@ export async function runDialogueAttribution(deps: AttributionDeps, input: { pro
       }
     } catch (err) {
       // Degrade gracefully: flag the batch for manual review instead of failing the stage (§4.7).
+      failedBatches++;
+      lastError = err;
       console.warn(`[attribute] batch at ${b} failed: ${err instanceof Error ? err.message : err}`);
       for (const item of batch) {
         const line = byId.get(item.segment_id)!;
@@ -144,6 +148,10 @@ export async function runDialogueAttribution(deps: AttributionDeps, input: { pro
         recentSpeakers.push(null);
       }
     }
+  }
+
+  if (total > 0 && failedBatches === total) {
+    throw new Error(`Dialogue attribution failed for every batch: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
   }
 
   const result: AttributionResult = { lines };

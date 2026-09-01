@@ -4,6 +4,21 @@ import type { Enqueuer } from "@/lib/queue";
 import type { PipelineRunRow } from "@/lib/db/types";
 
 /**
+ * Enqueues a job for an already-created pipeline_runs row. If the queue is unreachable the run
+ * is marked failed (and the project errored) so the UI offers a retry instead of a stuck spinner.
+ */
+export async function enqueueOrFail(runId: string, projectId: string, enqueue: () => Promise<string>): Promise<void> {
+  try {
+    await enqueue();
+  } catch (err) {
+    const message = `Could not queue the job: ${err instanceof Error ? err.message : String(err)}`;
+    await db()`update pipeline_runs set status = 'failed', finished_at = now(), error = ${message.slice(0, 2000)} where id = ${runId}`;
+    await db()`update projects set status = 'error', updated_at = now() where id = ${projectId}`;
+    throw err;
+  }
+}
+
+/**
  * Resets derived data and kicks off the processing pipeline from the ingest stage.
  * Existing chapters/characters/cues/recordings are removed because a fresh upload
  * invalidates all of them.
@@ -21,6 +36,6 @@ export async function startPipeline(projectId: string, enqueuer: Enqueuer, opts:
     await tx`update projects set status = 'processing', updated_at = now() where id = ${projectId}`;
   });
   const run = await createPipelineRun(projectId, "ingest", "queued");
-  await enqueuer.enqueue("ingest", { project_id: projectId, force: opts.force ?? true });
+  await enqueueOrFail(run.id, projectId, () => enqueuer.enqueue("ingest", { project_id: projectId, force: opts.force ?? true }));
   return [run];
 }

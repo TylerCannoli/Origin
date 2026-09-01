@@ -14,7 +14,7 @@ export class FakeLLM implements LLM {
   async complete<T>(req: LLMRequest<T>): Promise<LLMResult<T>> {
     this.calls.push(req as LLMRequest<unknown>);
     const override = this.overrides[req.agent];
-    const raw = override ? override(req.input) : defaultResponse(req.agent, req.input);
+    const raw = override ? override(req.input) : defaultFakeResponse(req.agent, req.input);
     const data = req.schema.parse(raw);
     const inputTokens = Math.ceil(JSON.stringify(req.input).length / 4);
     const outputTokens = Math.ceil(JSON.stringify(data).length / 4);
@@ -22,7 +22,7 @@ export class FakeLLM implements LLM {
   }
 }
 
-function defaultResponse(agent: string, input: unknown): unknown {
+export function defaultFakeResponse(agent: string, input: unknown): unknown {
   switch (agent) {
     case "ingestion.chapter_split":
       return chapterSplit(input as { paragraphs: { index: number; preview: string }[] });

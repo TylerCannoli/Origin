@@ -6,6 +6,7 @@ import { getOwnedProject } from "@/lib/db/projects";
 import { bullEnqueuer } from "@/lib/queue";
 import { renderSchema } from "@/lib/validation/schemas";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { enqueueOrFail } from "@/lib/pipeline/start";
 import type { ChapterRow } from "@/lib/db/types";
 import { track } from "@/lib/analytics";
 
@@ -39,14 +40,14 @@ export const POST = handle<Ctx>(async (req, { params }) => {
   if (stale.length === 0) {
     const [run] = await sql`insert into pipeline_runs (project_id, stage, status) values (${id}, 'render_book', 'queued') returning *`;
     runs.push(run);
-    await bullEnqueuer.enqueue("render_book", { project_id: id, force: true, batch_id: batchId });
+    await enqueueOrFail(run.id, id, () => bullEnqueuer.enqueue("render_book", { project_id: id, force: true, batch_id: batchId }));
   } else {
     for (const ch of stale) {
       // Reset status so the book render waits for this chapter.
       await sql`update chapters set status = 'segmented' where id = ${ch.id}`;
       const [run] = await sql`insert into pipeline_runs (project_id, stage, status, progress) values (${id}, 'render_chapter', 'queued', ${sql.json({ chapter_id: ch.id, message: ch.title })}) returning *`;
       runs.push(run);
-      await bullEnqueuer.enqueue("render_chapter", { project_id: id, chapter_id: ch.id, force: true, then_render_book: true, batch_id: batchId });
+      await enqueueOrFail(run.id, id, () => bullEnqueuer.enqueue("render_chapter", { project_id: id, chapter_id: ch.id, force: true, then_render_book: true, batch_id: batchId }));
     }
   }
   await track("render_requested", { projectId: id, userId: user.id, props: { chapters: stale.length, force: !!body.force } });
