@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/server";
 import { db } from "@/lib/db/client";
 import { getOwnedProject, latestPipelineRuns, touchProject } from "@/lib/db/projects";
 import { updateProjectSchema } from "@/lib/validation/schemas";
+import { storage } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -37,5 +38,6 @@ export const DELETE = handle<Ctx>(async (req, { params }) => {
   const user = await requireUser(req);
   await getOwnedProject(id, user.id);
   await db()`delete from projects where id = ${id}`;
+  await storage().deletePrefix(`projects/${id}`).catch((err) => console.warn("[projects] storage cleanup failed", err));
   return json({ ok: true });
 });

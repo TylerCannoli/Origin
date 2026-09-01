@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth/server";
 import { getProject } from "@/lib/db/projects";
 import { listAudio } from "@/lib/db/audio";
 import { rateLimit, clientIp } from "@/lib/api/rate-limit";
+import { track } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -16,6 +17,7 @@ export const GET = handle<Ctx>(async (req, { params }) => {
   const isOwner = user?.id === project.owner_id;
   if (project.visibility !== "public_listen" && !isOwner) throw forbidden("This audiobook is private");
   const audio = await listAudio(id, 6 * 3600);
+  if (!isOwner) await track("listen_viewed", { projectId: id, userId: user?.id ?? null });
   return json({
     project: { id: project.id, title: project.title },
     chapters: audio.chapters.filter((c) => c.render).map((c) => ({ title: c.chapter.title, order_index: c.chapter.order_index, url: c.render!.url, duration_ms: c.render!.duration_ms })),

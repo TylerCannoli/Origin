@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { getOwnedCharacter } from "@/lib/db/characters";
 import { mergeCharacterSchema } from "@/lib/validation/schemas";
 import type { CharacterRow } from "@/lib/db/types";
+import { track } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -29,5 +30,6 @@ export const POST = handle<Ctx>(async (req, { params }) => {
     await tx`update projects set updated_at = now() where id = ${target.project_id}`;
     return rows;
   });
+  await track("character_merged", { projectId: target.project_id, userId: user.id });
   return json({ character: merged });
 });

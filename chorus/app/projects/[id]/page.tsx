@@ -85,7 +85,12 @@ export default async function ProjectOverviewPage({ params }: { params: Promise<
         </section>
       ) : null}
 
-      <p className="text-xs text-muted">Processing cost so far: ${counts.cost.toFixed(4)} in model usage.</p>
+      <p className="text-xs text-muted">
+        Processing cost so far: ${counts.cost.toFixed(4)} in model usage.{" "}
+        <Link href={`/projects/${id}/costs`} className="underline">
+          See the breakdown
+        </Link>
+      </p>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { handle, json } from "@/lib/api/errors";
 import { requireUser } from "@/lib/auth/server";
 import { resolveInvite } from "@/lib/db/invites";
 import { db } from "@/lib/db/client";
+import { track } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ token: string }> };
 
@@ -15,5 +16,6 @@ export const POST = handle<Ctx>(async (req, { params }) => {
   if (character && !character.claimed_by_user_id) {
     await sql`update characters set claimed_by_user_id = ${user.id} where id = ${character.id} and claimed_by_user_id is null`;
   }
+  await track("recordings_claimed", { projectId: invite.project_id, userId: user.id, props: { count: claimed.length } });
   return json({ claimed: claimed.length });
 });

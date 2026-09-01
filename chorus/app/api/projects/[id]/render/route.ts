@@ -7,6 +7,7 @@ import { bullEnqueuer } from "@/lib/queue";
 import { renderSchema } from "@/lib/validation/schemas";
 import { rateLimit } from "@/lib/api/rate-limit";
 import type { ChapterRow } from "@/lib/db/types";
+import { track } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -48,5 +49,6 @@ export const POST = handle<Ctx>(async (req, { params }) => {
       await bullEnqueuer.enqueue("render_chapter", { project_id: id, chapter_id: ch.id, force: true, then_render_book: true, batch_id: batchId });
     }
   }
+  await track("render_requested", { projectId: id, userId: user.id, props: { chapters: stale.length, force: !!body.force } });
   return json({ batch_id: batchId, chapters_queued: stale.length, runs }, { status: 202 });
 });

@@ -7,6 +7,7 @@ import { bullEnqueuer } from "@/lib/queue";
 import { startPipeline } from "@/lib/pipeline/start";
 import { MAX_UPLOAD_BYTES, SUPPORTED_UPLOAD_EXTENSIONS, pasteUploadSchema, type UploadExtension } from "@/lib/validation/schemas";
 import { rateLimit } from "@/lib/api/rate-limit";
+import { track } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -70,5 +71,6 @@ export const POST = handle<Ctx>(async (req, { params }) => {
 
   await touchProject(id, { source_file_url: key, source_kind: kind, rights_attested: true, ...(title ? { title } : {}) });
   const runs = await startPipeline(id, bullEnqueuer, { force: true });
+  await track("manuscript_uploaded", { projectId: id, userId: user.id, props: { kind, bytes: bytes.length } });
   return json({ ok: true, source_file_url: key, pipeline: runs }, { status: 202 });
 });

@@ -9,7 +9,7 @@ export async function migrateTestDb() {
 export async function resetTestDb() {
   const sql = db();
   await sql.unsafe(
-    `truncate table tts_cache, casting_invites, agent_runs, pipeline_runs, rendered_audio, recordings, cues, characters, chapters, manuscripts, projects, users restart identity cascade`,
+    `truncate table analytics_events, tts_cache, casting_invites, agent_runs, pipeline_runs, rendered_audio, recordings, cues, characters, chapters, manuscripts, projects, users restart identity cascade`,
   );
 }
 

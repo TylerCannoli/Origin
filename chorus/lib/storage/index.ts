@@ -12,6 +12,8 @@ export interface StorageProvider {
   delete(key: string): Promise<void>;
   /** Returns a URL a browser can fetch for a limited time. */
   signedUrl(key: string, expiresInSeconds?: number): Promise<string>;
+  /** Removes everything under a key prefix (best effort). */
+  deletePrefix(prefix: string): Promise<void>;
 }
 
 function safeKey(key: string): string {
@@ -40,7 +42,8 @@ export class LocalStorageProvider implements StorageProvider {
   private resolve(key: string) {
     return path.join(this.root, safeKey(key));
   }
-  async put(key: string, data: Buffer | Uint8Array) {
+  async put(key: string, data: Buffer | Uint8Array, _contentType?: string) {
+    void _contentType;
     const file = this.resolve(key);
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, data);
@@ -59,6 +62,9 @@ export class LocalStorageProvider implements StorageProvider {
   }
   async delete(key: string) {
     await fs.rm(this.resolve(key), { force: true });
+  }
+  async deletePrefix(prefix: string) {
+    await fs.rm(this.resolve(prefix), { recursive: true, force: true });
   }
   async signedUrl(key: string, expiresInSeconds = 3600) {
     const k = safeKey(key);
@@ -93,6 +99,27 @@ export class SupabaseStorageProvider implements StorageProvider {
   }
   async delete(key: string) {
     await this.client.storage.from(this.bucket).remove([safeKey(key)]);
+  }
+  async deletePrefix(prefix: string) {
+    const root = safeKey(prefix);
+    const walk = async (dir: string): Promise<string[]> => {
+      const out: string[] = [];
+      let offset = 0;
+      for (;;) {
+        const { data } = await this.client.storage.from(this.bucket).list(dir, { limit: 1000, offset });
+        if (!data || data.length === 0) break;
+        for (const entry of data) {
+          const full = `${dir}/${entry.name}`;
+          if (entry.id === null) out.push(...(await walk(full)));
+          else out.push(full);
+        }
+        if (data.length < 1000) break;
+        offset += data.length;
+      }
+      return out;
+    };
+    const files = await walk(root);
+    for (let i = 0; i < files.length; i += 100) await this.client.storage.from(this.bucket).remove(files.slice(i, i + 100));
   }
   async signedUrl(key: string, expiresInSeconds = 3600) {
     const { data, error } = await this.client.storage.from(this.bucket).createSignedUrl(safeKey(key), expiresInSeconds);

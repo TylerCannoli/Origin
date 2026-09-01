@@ -6,6 +6,7 @@ import { storage, storageKeys } from "@/lib/storage";
 import { invalidateChapterForCue } from "@/lib/db/recordings";
 import { rateLimit, clientIp } from "@/lib/api/rate-limit";
 import type { CueRow, RecordingRow } from "@/lib/db/types";
+import { track } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ token: string; cueId: string }> };
 
@@ -56,5 +57,6 @@ export const POST = handle<Ctx>(async (req, { params }) => {
   })} returning *`;
   await invalidateChapterForCue(cue.id);
   await sql`update projects set updated_at = now() where id = ${project.id}`;
+  await track("recording_uploaded", { projectId: project.id, userId: user?.id ?? null, props: { guest: !user, duration_ms: duration } });
   return json({ recording }, { status: 201 });
 });

@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/server";
 import { db } from "@/lib/db/client";
 import { updateCueSchema } from "@/lib/validation/schemas";
 import type { CueRow } from "@/lib/db/types";
+import { track } from "@/lib/analytics";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -31,5 +32,6 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
     await sql`delete from tts_cache where cue_id = ${id}`;
   }
   await sql`update projects set updated_at = now() where id = ${cue.project_id}`;
+  if (body.character_id) await track("cue_reassigned", { projectId: cue.project_id, userId: user.id });
   return json({ cue: updated });
 });
