@@ -37,22 +37,30 @@ export class FFmpeg {
   }
 
   /**
-   * Mastering pass for a single clip (§4.6 steps 2-4): high-pass + gentle gate for human
+   * Mastering for a single clip (§4.6 steps 2-4): high-pass + gentle gate for human
    * recordings, silence trimming at both ends, loudness normalisation to the target LUFS,
    * and resampling to a common format so clips can be concatenated losslessly.
+   *
+   * Two ffmpeg passes on purpose: ffmpeg 6.x can stall when `silenceremove` and `loudnorm`
+   * share one filter graph on some inputs, and loudnorm wants the whole (trimmed) clip anyway.
    */
   async masterClip(inFile: string, outFile: string, opts: { human: boolean; targetLufs?: number }): Promise<void> {
-    const filters: string[] = [];
-    if (opts.human) filters.push("highpass=f=80", "agate=threshold=0.02:ratio=2:attack=5:release=120");
-    filters.push(
+    const trimmed = `${outFile}.trim.wav`;
+    const cleanup: string[] = [];
+    if (opts.human) cleanup.push("highpass=f=80", "agate=threshold=0.02:ratio=2:attack=5:release=120");
+    const trim = [
+      ...cleanup,
       "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.15",
       "areverse",
       "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.15",
       "areverse",
-      `loudnorm=I=${opts.targetLufs ?? -16}:TP=-1.5:LRA=11`,
-      "aresample=44100",
-    );
-    await this.run(["-i", inFile, "-af", filters.join(","), "-ac", "1", "-ar", "44100", "-codec:a", "pcm_s16le", outFile]);
+    ];
+    await this.run(["-i", inFile, "-af", trim.join(","), "-ac", "1", "-ar", "44100", "-codec:a", "pcm_s16le", trimmed]);
+    try {
+      await this.run(["-i", trimmed, "-af", `loudnorm=I=${opts.targetLufs ?? -16}:TP=-1.5:LRA=11,aresample=44100`, "-ac", "1", "-ar", "44100", "-codec:a", "pcm_s16le", outFile]);
+    } finally {
+      await fs.rm(trimmed, { force: true });
+    }
   }
 
   /** Concatenates WAV/MP3 parts (same format) into one file via the concat demuxer, then encodes to MP3. */
