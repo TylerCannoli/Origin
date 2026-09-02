@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CharacterWithStats } from "@/lib/db/characters";
 import type { Voice } from "@/lib/tts/types";
@@ -37,11 +37,25 @@ export function CastingBoard({
   const totalLines = characters.reduce((n, c) => n + c.line_count, 0);
   const recordedLines = characters.reduce((n, c) => n + c.recorded_count, 0);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const { characters: next } = await api.get<{ characters: CharacterWithStats[] }>(`/api/projects/${projectId}/characters`);
     setCharacters(next);
     router.refresh();
-  }
+  }, [projectId, router]);
+
+  // Live status (§3 Flow B step 4): readers record on their own devices, so poll while the tab is visible.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      api.get<{ characters: CharacterWithStats[] }>(`/api/projects/${projectId}/characters`).then((r) => setCharacters(r.characters)).catch(() => {});
+    };
+    const timer = setInterval(tick, 15000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [projectId]);
 
   async function patch(id: string, body: Record<string, unknown>) {
     setError(null);

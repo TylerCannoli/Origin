@@ -169,11 +169,11 @@ export function RecordingStudio({ token, initial, characterQuery }: { token: str
           </section>
         ) : null}
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Button variant="secondary" onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0}>
             Previous line
           </Button>
-          <label className="flex items-center gap-2 text-sm text-muted">
+          <label className="order-last flex w-full items-center gap-2 text-sm text-muted sm:order-none sm:w-auto">
             <input type="checkbox" checked={autoAdvance} onChange={(e) => setAutoAdvance(e.target.checked)} />
             Jump to the next unrecorded line after saving
           </label>

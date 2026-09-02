@@ -1,6 +1,7 @@
 import mammoth from "mammoth";
 import JSZip from "jszip";
 import { PDFParse } from "pdf-parse";
+import { detectHeading } from "./chapters";
 
 export interface ParsedDocument {
   /** Raw paragraphs in reading order. */
@@ -184,7 +185,11 @@ async function parsePdf(bytes: Buffer): Promise<ParsedDocument> {
   return pdfPagesToDocument(pages);
 }
 
-/** Cleans page numbers and repeated headers/footers, de-hyphenates, and rebuilds paragraphs from PDF text lines. */
+/**
+ * Cleans page numbers and repeated headers/footers, de-hyphenates, and rebuilds paragraphs from
+ * PDF text lines. Extracted PDFs rarely keep blank lines, so paragraph breaks are inferred from
+ * chapter headings, short sentence-final lines, and dialogue turn boundaries.
+ */
 export function pdfPagesToDocument(pages: string[]): ParsedDocument {
   const lineCounts = new Map<string, number>();
   const pageLines = pages.map((p) =>
@@ -198,29 +203,41 @@ export function pdfPagesToDocument(pages: string[]): ParsedDocument {
   const repeatedThreshold = Math.max(3, Math.ceil(pages.length * 0.3));
   const isNoise = (l: string) =>
     /^\d{1,4}$/.test(l) || /^(page\s+)?\d+(\s+of\s+\d+)?$/i.test(l) || /^[ivxlc]+$/i.test(l) || (lineCounts.get(l) ?? 0) >= repeatedThreshold;
+  const OPEN_QUOTE = /^["\u201c\u2018]/;
+  const TURN_BOUNDARY = /(["\u201d][.!?,]?|[.!?]["\u201d])\s+(?=["\u201c])/g;
 
   const paragraphs: string[] = [];
   let current = "";
   const flush = () => {
     const t = current.trim();
-    if (t) paragraphs.push(t);
+    if (t) {
+      // A closing quote followed by an opening quote is a new speaker's paragraph.
+      for (const part of t.replace(TURN_BOUNDARY, "$1\n").split("\n")) if (part.trim()) paragraphs.push(part.trim());
+    }
     current = "";
   };
   for (const lines of pageLines) {
     const maxLen = Math.max(0, ...lines.map((l) => l.length));
-    for (const line of lines) {
+    for (const [i, line] of lines.entries()) {
       if (!line) {
         flush();
         continue;
       }
       if (isNoise(line)) continue;
+      if (detectHeading(line)) {
+        flush();
+        paragraphs.push(line);
+        continue;
+      }
       if (current.endsWith("-") && /^[a-z]/.test(line)) {
         current = current.slice(0, -1) + line;
       } else {
         current = current ? `${current} ${line}` : line;
       }
-      // Short line ending a sentence is usually the end of a paragraph.
-      if (/[.!?"”’]$/.test(line) && line.length < maxLen * 0.7) flush();
+      const endsSentence = /[.!?"\u201d\u2019]$/.test(line);
+      const next = lines[i + 1] ?? "";
+      // Sentence-final line that is clearly short, or that hands over to a quoted line, ends the paragraph.
+      if (endsSentence && (line.length < maxLen * 0.85 || OPEN_QUOTE.test(next))) flush();
     }
   }
   flush();

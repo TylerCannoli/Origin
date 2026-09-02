@@ -35,6 +35,30 @@ describe("ingestion parsing", () => {
     expect(doc.paragraphs.join(" | ")).not.toMatch(/\b1[234]\b/);
     expect(doc.paragraphs[0]).toContain("rattled the shutters");
   });
+  it("rebuilds paragraphs from pdf lines without blank lines: headings, dialogue turns", () => {
+    const pages = [
+      [
+        "Chapter 1: The Storm",
+        "The storm came in off the water an hour before dusk, and by the time the first gust",
+        "rattled the shutters, Mara Quill had already lit every lamp in the lighthouse.",
+        '"You\'ll burn through the oil by midnight," said her grandfather from the foot of the',
+        "stairs. Old Tobias Quill leaned on his cane and squinted up at her.",
+        '"Then I\'ll burn through it," Mara said. "There are boats out there."',
+        "Tobias grunted. He had kept this light for forty years, and he did not like being",
+        "told about boats.",
+        "Chapter 2: The Gull",
+        "Morning brought a grey calm.",
+      ].join("\n"),
+    ];
+    const doc = pdfPagesToDocument(pages);
+    expect(doc.paragraphs[0]).toBe("Chapter 1: The Storm");
+    expect(doc.paragraphs[1]).toMatch(/^The storm came .* lighthouse\.$/);
+    expect(doc.paragraphs[2]).toMatch(/^"You'll burn .* up at her\.$/);
+    expect(doc.paragraphs[3]).toBe('"Then I\'ll burn through it," Mara said. "There are boats out there."');
+    expect(doc.paragraphs[4]).toMatch(/^Tobias grunted/);
+    expect(doc.paragraphs[5]).toBe("Chapter 2: The Gull");
+    expect(detectChapters(doc).map((c) => c.title)).toEqual(["Chapter 1: The Storm", "Chapter 2: The Gull"]);
+  });
 });
 
 describe("chapter detection", () => {

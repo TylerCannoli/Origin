@@ -2,13 +2,13 @@ import Link from "next/link";
 import { ProcessingStepper } from "@/components/pipeline/processing-stepper";
 import { ButtonLink } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
-import { getProject, latestPipelineRuns } from "@/lib/db/projects";
+import { requireProject, latestPipelineRuns } from "@/lib/db/projects";
 import { db } from "@/lib/db/client";
 import { ProjectOverviewActions } from "./overview-actions";
 
 export default async function ProjectOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const project = (await getProject(id))!;
+  const project = await requireProject(id);
   const runs = await latestPipelineRuns(id);
   const sql = db();
   const [counts] = await sql<{ characters: number; chapters: number; cues: number; recorded: number; needs_review: number; cost: number }[]>`

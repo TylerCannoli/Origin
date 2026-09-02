@@ -1,4 +1,4 @@
-import { getProject } from "@/lib/db/projects";
+import { requireProject } from "@/lib/db/projects";
 import { listAudio } from "@/lib/db/audio";
 import { db } from "@/lib/db/client";
 import { ListenPanel } from "./listen-panel";
@@ -6,7 +6,7 @@ import type { PipelineRunRow } from "@/lib/db/types";
 
 export default async function ListenPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const project = (await getProject(id))!;
+  const project = await requireProject(id);
   const audio = await listAudio(id);
   const runs = await db()<PipelineRunRow[]>`
     select * from pipeline_runs where project_id = ${id} and stage in ('render_chapter', 'render_book') and status in ('queued', 'running')`;

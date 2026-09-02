@@ -35,10 +35,11 @@ async function upsertUser(id: string | null, email: string | null, displayName: 
       returning *`;
     return row;
   }
-  const [existing] = await sql<UserRow[]>`select * from users where email = ${email} limit 1`;
-  if (existing) return existing;
+  // Concurrent first requests for a new email (page + API calls) must not race on the insert.
   const [row] = await sql<UserRow[]>`
-    insert into users (id, email, display_name) values (gen_random_uuid(), ${email}, ${displayName}) returning *`;
+    insert into users (id, email, display_name) values (gen_random_uuid(), ${email}, ${displayName})
+    on conflict (email) do update set display_name = coalesce(users.display_name, excluded.display_name)
+    returning *`;
   return row;
 }
 

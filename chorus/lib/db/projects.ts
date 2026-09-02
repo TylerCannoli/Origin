@@ -1,5 +1,6 @@
 import { db } from "@/lib/db/client";
 import type { ProjectRow, PipelineRunRow, PipelineStage, PipelineStatus } from "@/lib/db/types";
+import { notFound as nextNotFound } from "next/navigation";
 import { forbidden, notFound } from "@/lib/api/errors";
 
 export async function listProjectsForOwner(ownerId: string) {
@@ -17,6 +18,13 @@ export async function listProjectsForOwner(ownerId: string) {
 export async function getProject(id: string): Promise<ProjectRow | null> {
   const [row] = await db()<ProjectRow[]>`select * from projects where id = ${id}`;
   return row ?? null;
+}
+
+/** For server-rendered project pages: the layout already checked ownership, but pages render concurrently with it. */
+export async function requireProject(id: string): Promise<ProjectRow> {
+  const project = await getProject(id);
+  if (!project) nextNotFound();
+  return project;
 }
 
 /** Loads a project and asserts ownership. */

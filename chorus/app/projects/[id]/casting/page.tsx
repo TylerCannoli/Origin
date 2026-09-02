@@ -1,5 +1,5 @@
 import { listCharacters } from "@/lib/db/characters";
-import { getProject } from "@/lib/db/projects";
+import { requireProject } from "@/lib/db/projects";
 import { createTTS } from "@/lib/tts";
 import { EmptyState } from "@/components/ui/notice";
 import { ButtonLink } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { CastingBoard } from "@/components/casting-board/casting-board";
 
 export default async function CastingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const project = (await getProject(id))!;
+  const project = await requireProject(id);
   const characters = await listCharacters(id);
   let voices: Awaited<ReturnType<ReturnType<typeof createTTS>["listVoices"]>> = [];
   let voiceError: string | null = null;
